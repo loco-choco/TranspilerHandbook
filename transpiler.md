@@ -83,15 +83,14 @@ But before we can learn it there are a few things to clarify. Transpilers aren't
 
 You don't need to worry about knowing how to write "Hello World" in IL nor how to compile C# code to IL in your head, but you will need to understand why changing the OpCodes (the building blocks of IL code) can result in what we want.
 
-
 ## Intermediary Language (IL)
 You might have heard that if you code in C or C++, your code isn't run by the machine as is. It before needs to be compiled into Assembly code, which is the job of the compiler, who returns your `.exe` or `.dll` file that you can execute to run your program.
 
-![](https://github.com/ShoosGun/TranspilerHandbook/tree/main/pictures/il/cCompiling.webp)
+![](pictures/il/cCompiling.webp)
 
 When you press the "build" button in your C# project something simmilar happens, a compiler compiles your code and in your "out" folder you now have a .exe or a .dll file. But these files are not the same as the ones from a C/C++ compiler, reason is, is that they are not in assemlby, but in **IL!**. When you run your executable, this new language is compiled into assembly during runtime by the **JIT**(**J**ust **I**n **T**ime) compiler. 
 
-![](https://github.com/ShoosGun/TranspilerHandbook/tree/main/pictures/il/cSharpCompiling.webp)
+![](pictures/il/cSharpCompiling.webp)
 
 This is one of the reasons you must have a .Net version to run executables from .Net projects, and that executables from C/C++ run in *most* computers without any additional frameworks.
 
@@ -168,7 +167,7 @@ nop
 ret
 ```
 
-The `nop` OpCodes are used for debugging, so we can ignore them, simplifing our code to this:
+The `nop` OpCodes, as their name _**N**o **Op**eration_ suggests, don't do anything. They appear on the debug version of the code to make debugging easier for the debugger, so we can ignore them, simplifing our code to this:
 ```CSharp
 ldstr     "Hello Transpiling!"
 call      void [mscorlib]System.Console::WriteLine(string)
@@ -353,6 +352,12 @@ As you might have also noticed, there are no `if` or `for` OpCode, only the `br`
 | `bne [LABEL]` | `number a, number b`| `if( a != b ) goto [LABEL]`|
 | `brfalse [LABEL]` | `bool b`| `if( !b ) goto [LABEL]`|
 | `brtrue [LABEL]` | `bool b`| `if( b ) goto [LABEL]`|
+
+### Release vs Debug builds
+---
+Have you ever wondered what are the differences between a Release and a Debug build? You might already know that it does some optimizations to the `.dll` or `.exe`, sometimes even reduzing the size of the file. 
+
+To do this the compiler might generate different groups of OpCodes for the same method! This means that a transpiler that worked on the release version may not work on the debug version, and vice versa. So when releasing your code, expect that someone might have to create a transpiler for your methods, so do not forget to build for Release when publishing and pay attention to not accidentally publish the Debug build.
 
 ### Extra information
 ---
