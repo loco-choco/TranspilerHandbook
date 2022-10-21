@@ -1,18 +1,16 @@
 # The Transpilers Handbook
 
-*By Locochoco / ShoosGun / Ivan Roberto*
+*By Locochoco / ShoosGun / Ivan Pancheniak*
 
 *Version: 1.0.0*
 
 *Date: 20/10/2022*
 
-
 This is a handbook for people looking for examples and different ways to use the transpiler type of patching. Transpilers when compared to prefixes and postfixes are usually more complicated, as they have many moving parts, so if you still haven't learned them, I suggest you do it before you dip your toes on the transpiler waters.
 
-In this text we will be using the HarmonyX tools and annotations, so be careful when copying the code if you are using plain Harmony. We will also be using DnSpy as a code decompiler, but any software that decompiles .Net code and allows you to view the C# code in IL should work too.
+In this text we will be using the HarmonyX tools and annotations, so be careful when copying the code if you are using plain Harmony. We will also be using dnSpy as a code decompiler, but any software that decompiles .Net code and allows you to view the C# code in IL should work too.
 
 ## What are transpilers and why?
----
 
 If you played around with prefixes and postfixes in Harmony you might have noticed a few things: when you use them, you are redirecting the code so that yours runs either before or after it; and that you can choose to let the base code run. This options are great, but you can never actually change what happens inside of the method you are patching. 
 
@@ -87,7 +85,6 @@ You don't need to worry about knowing how to write "Hello World" in IL nor how t
 
 
 ## Intermediary Language (IL)
----
 You might have heard that if you code in C or C++, your code isn't run by the machine as is. It before needs to be compiled into Assembly code, which is the job of the compiler, who returns your `.exe` or `.dll` file that you can execute to run your program.
 
 ![](pictures\il\cCompiling.webp)
@@ -196,11 +193,14 @@ As mentioned before we will mostly be looking at the OpCodes which are interesti
 
 | OpCode| Syntax | Purpose |
 |:--------------:|:-----:|:-----------:|
-| `ldarg` | `ldarg` | Loading the arguments passed to the method |
-| `ldloc` | `ldloc` | Loading local variables on the method |
+| `ldarg` | `ldarg` | Loads the argument passed to the method |
+| `starg` | `starg` | Stores into the argument passed to the method |
+| `ldloc` | `ldloc` | Loads local variable on the method |
+| `stloc` | `stloc` | Stores into the local variable on the method |
+| `ldc.i4` | `ldc.i4` | Loads a `int32` constant |
 | `call` | `call [method complete name]`| Calls methods|
 | `ret` | `ret`| Ends current method|
-| `br` and simmilar | `br [Index/Label of target OpCode]`| Jumps the code to the OpCode on the target index/label|
+| `br` and simmilar | `br [Label to target OpCode]`| Jumps the code to the OpCode pointed by the label|
 
 
 #### Some OpCodes to C# Examples
@@ -298,8 +298,8 @@ private void LoopFor(int[] array)
 	IL_0003: stloc.0 //Stores it in the first local variable (size)
     
 	//int i = 0;
-	IL_0004: ldc.i4.0 //Gets the constant 0
-	IL_0005: stloc.1 //Loads into the second local variable (i)
+	IL_0004: ldc.i4.0 //Loads the constant 0
+	IL_0005: stloc.1 //Stores in the second local variable (i)
 
 	IL_0006: br.s      IL_0010 //Goes to IL_0010, where the for loop starts
 	// start of loop 
@@ -334,13 +334,13 @@ For more examples check the ones in the [dotnetperls website](https://www.dotnet
 ### Labels
 ---
 
-Labels are a concept that exist in multiple programming languages. Basically what they do is mark a part of the code that you can later with a `goto` jump to. Of course that in regular programming they don't appear that much, but the concept in IL isn't that different. If you noticed on the examples, every OpCode has an index, the `IL_xxxx`, and because a line of code in IL is *just an OpCode*, a label, instead of just marking a line of code, it points to an OpCode. For example, on the "For Loop" example, the code in `IL_0006` has as a parameter a label that points to the instruction at `IL_0010`.
+Labels are a concept that exist in multiple programming languages. Basically what they do is mark a part of the code that you can later with a `goto` jump to. Of course that in regular programming they don't appear that much, but the concept in IL isn't that different. If you noticed on the examples, every OpCode has an index, the `IL_xxxx`, and because a line of code in IL is *just an OpCode*, a label, instead of just marking a line of code, points to an OpCode. For example, on the [For Loop](#2-for-loop) example, the code in `IL_0006` has as a parameter a label that points to the instruction at `IL_0010`.
 
 
 ### Branching
 ---
 
-As you might have also noticed, there is no `if` or `for` OpCode, only the `br` OpCode, and from it several variants. They work in a simmilar way that a `goto` in other languages would (minus the controversy behind them), given a label, they will jump to it. But, differently from a regular `goto`, they can be conditional! A regular `br` is a "standart `goto`", but `blt` (**b**ranc if **l**ess **t**hen ) only branches if the first argument passed to it (remember that the order that the OpCodes happen is the order of the arguments, so the first passed argument is the one at the top of the block) is less then the second. There are many OpCodes for branching, so here is a table of them:
+As you might have also noticed, there are no `if` or `for` OpCode, only the `br` OpCode, and from it several variants. They work in a simmilar way that a `goto` in other languages would (minus the controversy behind them), given a label, they will jump to it. But, differently from a regular `goto`, they can be conditional! A regular `br` is a "standart `goto`", but `blt` (**b**ranch if **l**ess **t**hen) only branches if the first argument passed to it (remember that the order that the OpCodes happen is the order of the arguments, so the first passed argument is the one at the top of the block) is less then the second. There are many OpCodes for branching, so here is a table of them:
 
 | OpCode| Arguments | Simmilar to |
 |:--------------:|:-----:|:-----------:|
@@ -360,7 +360,7 @@ These informations aren't that usefull for transpiling, but it can't hurt to kno
 
 Have you notice that some OpCodes have a `.s` on the end? Like `blt.s` or `br.s`? They are short version of the `blt` and `br` Opcodes. The regular opcodes take as a label ints (int32). But usually you don't need to jump too much, as a for loop with a small body can appear several times in the code. So for small jumps we can use bytes (int8) to save space, and because an int is different from a byte, the `.s` is used to show that.
 
-And what about the missing index on the example codes? On the "for loop" example the `IL_0009` isn't there! Or is it?
+And what about the missing index on the example codes? On the [For Loop](#2-for-loop) example the `IL_0009` isn't there! Or is it?
 
 ```CSharp
 	IL_0005: stloc.1 
@@ -373,7 +373,7 @@ And what about the missing index on the example codes? On the "for loop" example
 
 In IL, everything needs to be in a new line, because, for the computer, all this is just a list of instructions, so how can we store information like the label that the branch needs to jump to? Easy, just store it with the rest of the code! This means that, if you could see the computer running that snipped of code, it would read the information about the label on the `IL_0009` index! Here are some other examples of storing non OpCode information in the indexes:
 
-From the "Calling static and non static methods" example. `IL_0005` stores the `10` value, as it isn't stored as a constant, and because it is less then a *signed* byte capacity, `ldc.i4.s` is used.
+From the "Calling static and non static methods" example. `IL_0005` stores the `10` value, as it isn't stored like values from 0 to 9 in `ldc.i4.0` to `ldc.i4.9` , and because it is less then a *signed* byte capacity, `ldc.i4.s` is used.
 ```CSharp
 	IL_0003: stloc.0 
     
@@ -402,18 +402,17 @@ This is the end of this somewhat introduction to IL and its OpCodes, if you want
 * [A complete table of the OpCodes from wikipedia](https://en.wikipedia.org/wiki/List_of_CIL_instructions)
 
 ## CodeMatcher
----
 
 Now that we have the knowledge of OpCodes and IL, we can finally do transpilers! To create them (using the HarmonyX annotation system) you need to do:
 
 ```CSharp
-	[HarmonyTranspiler]
-        [HarmonyPatch(/*The Params to patch your target method*/))]
-        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-        {
-			//Transpiler code
-			//You need to return your edited instructions
-        }
+[HarmonyTranspiler]
+[HarmonyPatch(/*The Params to patch your target method*/))]
+static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+{
+	//Transpiler code
+	//You need to return your edited instructions
+}
 ```
 
 As you might have noticed, transpilers always will have the `instructions` parameter. That parameter is the list of OpCodes from the target method, the same one that we saw on the previous section! Which means that editing that IEnumerable is actively changind the code, OpCode by OpCode.
@@ -422,23 +421,23 @@ There are several ways to edit the code. You can do the method from the [Harmony
 
 `CodeMatcher` works by first constructing a `CodeMatcher` by passing `instructions`. Then, with it, you can use its several helper functions to search, remove and add OpCodes to make the changes you want. And when you are done, just return the instructions by calling `.InstructionEnumeration()` on your `CodeMatcher` instance.
 ```CSharp
-	static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-    {
-        CodeMatcher codeEditsHelper = new CodeMatcher(instructions);
-		//Do stuff with codeEditsHelper
-		return codeEditsHelper.InstructionEnumeration();
-	}
+static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+{
+    CodeMatcher codeEditsHelper = new CodeMatcher(instructions);
+	//Do stuff with codeEditsHelper
+	return codeEditsHelper.InstructionEnumeration();
+}
 ```
 Most of the calls with `CodeMatcher` return itself, so you can even inline the method like this:
 ```CSharp
-	static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-    {
-        return new CodeMatcher(instructions)
-		//.FunctionA()
-		//.FunctionB()
-		//...
-		.InstructionEnumeration();
-	}
+static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+{
+    return new CodeMatcher(instructions)
+	//.FunctionA()
+	//.FunctionB()
+	//...
+	.InstructionEnumeration();
+}
 ```
 
 `CodeMatcher` has an internal position pointer, this means that to modify code in a certain position of the `instructions` list, you will need to have called a method that moves said pointer to that position. We will shortly see that the methods we will mostly be using to move the pointer are `MatchForward` and `MatchBack` when the distance of the jump can vary, and `Advance` for general jumps. Other methods that have "AndAdvance" in the name like `InsertAndAdvance` and `SetOperandAndAdvance` will also make the pointer go to the next OpCode.
@@ -456,33 +455,30 @@ One more thing before we start with `CodeMatcher`. To make transpilers it is goo
 Let's see it in action. We have this modified example from the very beginning, where I want to change the values of every constant that has `10` to `11`.
 
 ```CSharp
-	public void BananaCheck() //Original
+public void BananaCheck() //Original
+{
+    if (bananas >= 10)
     {
-        if (bananas >= 10)
-        {
-            ExplodePlayer(10);
-        }
-
-        Console.WriteLine("I love my {0} bananas!", 10);
-
-        int ten = 10;
-
-        Console.WriteLine("This is a really cool number! {0}", ten + 1);
+        ExplodePlayer(10);
     }
+    Console.WriteLine("I love my {0} bananas!", 10);
 
-	public void BananaCheck() //What I want
+    int ten = 10;
+
+    Console.WriteLine("This is a really cool number! {0}", ten + 1);
+}
+public void BananaCheck() //What I want
+{
+    if(bananas >= 11)
     {
-        if(bananas >= 11)
-        {
-            ExplodePlayer(11);
-        }
-
-		Console.WriteLine("I love my {0} bananas!", 11);
-		
-		int ten = 11;
-		
-        Console.WriteLine("This is a really cool number! {0}", ten + 1);
+        ExplodePlayer(11);
     }
+	Console.WriteLine("I love my {0} bananas!", 11);
+	
+	int ten = 11;
+	
+    Console.WriteLine("This is a really cool number! {0}", ten + 1);
+}
 ```
 
 How do I achieve it? I need to somewhow replace what makes the `10`'s appear with `11`'s. By looking at the IL code of `BananaCheck()` we can see that the `10`'s come from the `ldc.i4.s  10` OpCode, so to do the change, we have to replace `ldc.i4.s  10` with `ldc.i4.s  11`.
@@ -532,27 +528,27 @@ So the mental plan is:
 From it we would now only have to implement the step 2 of the plan. We will shortly see that with `CodeMatcher` we could implement it like this:
 
 ```CSharp
-	static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-    {
-        return new CodeMatcher(instructions)
-		.MatchForward(false, //Searchs for everytime that the following "list" of codes is matched
-                new CodeMatch(i => i.opcode == OpCodes.Ldc_I4_S && Convert.ToInt32(i.operand) == 10) 
-				//^ Checks the Opcode to see if it is ldc.i4.s and holds the value 10
-            ).Repeat(matcher => //For every match, execute this part
-                matcher.RemoveInstruction()// Remove the original instruction
-                .Insert(
-                        new CodeInstruction(OpCodes.Ldc_I4_S, 11) //Insert ours in its place
-            ))
-		.InstructionEnumeration();
-	}
+static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+{
+    return new CodeMatcher(instructions)
+	.MatchForward(false, //Searchs for everytime that the following "list" of codes is matched
+            new CodeMatch(i => i.opcode == OpCodes.Ldc_I4_S && Convert.ToInt32(i.operand) == 10) 
+			//^ Checks the Opcode to see if it is ldc.i4.s and holds the value 10
+        ).Repeat(matcher => //For every match, execute this part
+            matcher.RemoveInstruction()// Remove the original instruction
+            .Insert(
+                    new CodeInstruction(OpCodes.Ldc_I4_S, 11) //Insert ours in its place
+        ))
+	.InstructionEnumeration();
+}
 ```
 
 ### Finding where the code is
 ---
 
-An import part of transpiling is to find where the part of the code you want to modify is. Because the code is an unidimensional list of OpCodes, we can use simmilar techniques that you would use to find a substring in a string, or an element in an array.
+An important part of transpiling is to find where the part of the code you want to modify is. Because the code is an unidimensional list of OpCodes, we can use simmilar techniques that you would use to find a substring in a string, or an element in an array.
 
-A method you could use would be to use DnSpy to search for the index of the OpCodes that you want to change, and hardcode them in your transpiler. A problem with doing that is that (1) changes on the original code can make your transpiler no longer work and (2) it can make your transpiler incompatible with other transpilers.
+A method you could use would be to use dnSpy to search for the index of the OpCodes that you want to change, and hardcode them in your transpiler. A problem with doing that is that (1) changes on the original code can make your transpiler no longer work and (2) it can make your transpiler incompatible with other transpilers.
 
 To not need to know where the OpCodes are, but only how they "look" when grouped, we can use `CodeMatcher.MatchForward` and `CodeMatcher.MatchBack`.
 
@@ -588,67 +584,67 @@ private static void Main(string[] args)
 We learned that `Console.WriteLine("Hello Transpiling!")` is represented by `ldstr "Hello Transpiling!"` and `call void [mscorlib]System.Console::WriteLine(string)`, so with `MatchFoward`, we could do:
 
 ```CSharp
-	static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-    {
-        CodeMatcher matcher = new CodeMatcher(instructions)
-		.MatchForward(false, //Notice how we are searching for any group that has a ldstr followed by a call!
-                new CodeMatch(OpCodes.Ldstr),
-				new CodeMatch(OpCodes.Call)
-            );
+static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+{
+    CodeMatcher matcher = new CodeMatcher(instructions)
+	.MatchForward(false, //Notice how we are searching for any group that has a ldstr followed by a call!
+            new CodeMatch(OpCodes.Ldstr),
+			new CodeMatch(OpCodes.Call)
+        );
 
-		return matcher.InstructionEnumeration();
-	}
+	return matcher.InstructionEnumeration();
+}
 ```
 
 Notice that we need to pass the sequence of OpCodes with `CodeMatch`, this class can allow us to use lambda expressions for the comparison, which means that if we want to match only if `ldstr` holds `"Hello Transpiling!"`, we can do:
 
 ```CSharp
-	static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-    {
-        CodeMatcher matcher = new CodeMatcher(instructions)
-		.MatchForward(false, //Notice how we are searching for any group that
-		                     //has a ldstr that holds "Hello Transpiling!" and is followed by a call!
-                new CodeMatch(i => i.opcode == OpCodes.Ldstr && Convert.ToString(i.operand) == "Hello Transpiling!"),
-				new CodeMatch(OpCodes.Call)
-            );
+static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+{
+    CodeMatcher matcher = new CodeMatcher(instructions)
+	.MatchForward(false, //Notice how we are searching for any group that
+	                     //has a ldstr that holds "Hello Transpiling!" and is followed by a call!
+            new CodeMatch(i => i.opcode == OpCodes.Ldstr && Convert.ToString(i.operand) == "Hello Transpiling!"),
+			new CodeMatch(OpCodes.Call)
+        );
 
-		return matcher.InstructionEnumeration();
-	}
+	return matcher.InstructionEnumeration();
+}
 ```
 
-And if we want to it to only match `ldstr` with `"Hello Transpiling!"` followed by `call` with `void [mscorlib]System.Console::WriteLine(string)`:
+Not only this, but you can also match it to see if the operand is the same, so if we want to it to only match `ldstr` with `"Hello Transpiling!"` followed by `call` with `void [mscorlib]System.Console::WriteLine(string)`:
 
 ```CSharp
-	static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-    {
-        CodeMatcher matcher = new CodeMatcher(instructions)
-		.MatchForward(false, //Notice how we are now searching for any group that has
-		//has a ldstr that holds "Hello Transpiling!" and is followed by a call for Console.WriteLine!
-                new CodeMatch(i => i.opcode == OpCodes.Ldstr && Convert.ToString(i.operand) == "Hello Transpiling!"),
-				new CodeMatch(OpCodes.Call, AccessTools.Method(typeof(Console), "Console.WriteLine", typeof(string)))
-            );
+static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+{
+    CodeMatcher matcher = new CodeMatcher(instructions)
+	.MatchForward(false, //Notice how we are now searching for any group that has
+	//has a ldstr that holds "Hello Transpiling!" and is followed by a call for Console.WriteLine!
+            new CodeMatch(i => i.opcode == OpCodes.Ldstr && Convert.ToString(i.operand) == "Hello Transpiling!"),
+			new CodeMatch(OpCodes.Call, AccessTools.Method(typeof(Console), "Console.WriteLine", typeof(string)))
+        );
 
-		return matcher.InstructionEnumeration();
-	}
+	return matcher.InstructionEnumeration();
+}
 ```
 
 If we only want to match for the first (or last) group on the instruction, then just `MatchXXXX` is enough. But if you want to match for every group of OpCodes, we can call `Repeat`. `Repeat` allows us to execute code for every match, so if there were multiples `Console.WriteLine("Hello Transpiling!")`, we could do:
 
 ```CSharp
-	static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-    {
-        CodeMatcher matcher = new CodeMatcher(instructions)
-		.MatchForward(false, //Notice how we are now searching for any group that has
-		//has a ldstr that holds "Hello Transpiling!" and is followed by a call for Console.WriteLine!
-                new CodeMatch(i => i.opcode == OpCodes.Ldstr && Convert.ToString(i.operand) == "Hello Transpiling!"),
-				new CodeMatch(OpCodes.Call, AccessTools.Method(typeof(Console), "Console.WriteLine", typeof(string)))
-            ).Repeat(matcher =>
-				//Matcher is a CodeMatcher with the index on the matched group, so inside this lambda expression we can
-				//do action that will happen to every match!
-			);
-
-		return matcher.InstructionEnumeration();
-	}
+static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+{
+    CodeMatcher matcher = new CodeMatcher(instructions)
+	.MatchForward(false, //Notice how we are now searching for any group that has
+	//has a ldstr that holds "Hello Transpiling!" and is followed by a call for Console.WriteLine!
+            new CodeMatch(i => i.opcode == OpCodes.Ldstr && Convert.ToString(i.operand) == "Hello Transpiling!"),
+			new CodeMatch(OpCodes.Call, AccessTools.Method(typeof(Console), "Console.WriteLine", typeof(string)))
+        ).Repeat(matcher =>
+			//Matcher is a CodeMatcher with the index on the matched group, so inside this lambda expression we can
+			//do actions that will happen to every match!
+		);
+		
+	return matcher.InstructionEnumeration();
+}
 ```
 
 Making a parallel to the mental plan on the [Transpiling mentality](#transpiling-mentality) topic, `MatchXXXX` are the `Find xxxx` steps and `MatchXXXX` with `Repeat` are the `Find every xxxx`.
@@ -662,65 +658,65 @@ After having found the OpCodes, you will want to either insert new ones, remove 
 #### Inserting
 ---
 
-To insert new OpCodes we can use the `Insert` method. It will add a collection of `CodeInstruction` that you pass to it, pushing the instructions at the current position to after the ones you added.`CodeInstruction` hold the OpCode and the operand that it might have (operand is the extra value that the OpCodes might hold, as we saw with `call` or `ldstr` OpCodes). As mentioned before, because you need to use a method to move the pointer to the position you want to insert, your `Insert` call will usually follow, for example, a `MatchForward`.
+To insert new OpCodes we can use the `Insert` method. It will add a collection of `CodeInstruction` that you pass to it, pushing the instructions at the current position to after the ones you added. `CodeInstruction` hold the OpCode and the operand that it might have (operand is the extra value that the OpCodes might hold, as we saw with `call` or `ldstr` OpCodes). As mentioned before, because you need to use a method to move the pointer to the position you want to insert, your `Insert` call will usually follow, for example, a `MatchForward`.
 
 ```CSharp
-	static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-    {
-        return new CodeMatcher(instructions)
-		.MatchForward(false,
-				//CodeMatch 1,
-				//CodeMatch 2
-            )
-		.Insert(
-			//CodeInstruction 1,
-			//CodeInstruction 2,
-			//CodeInstruction 3
-			//...
-		).InstructionEnumeration();
-	}
+static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+{
+    return new CodeMatcher(instructions)
+	.MatchForward(false,
+			//CodeMatch 1,
+			//CodeMatch 2
+        )
+	.Insert(
+		//CodeInstruction 1,
+		//CodeInstruction 2,
+		//CodeInstruction 3
+		//...
+	).InstructionEnumeration();
+}
 ```
 
 There is also `InsertAndAdvance`, which will advance the pointer to the position after the last added `CodeInstruction`.
 
 ```CSharp
-	static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-    {
-        CodeMatcher matcher = new CodeMatcher(instructions)
-		.MatchForward(false,
-				//CodeMatch 1,
-				//CodeMatch 2
-            )
-		.InsertAndAdvance(
-			//CodeInstruction 1,
-			//CodeInstruction 2,
-			//CodeInstruction 3
-			//...
-		);
-		
-		return matcher.InstructionEnumeration();
-	}
+static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+{
+    CodeMatcher matcher = new CodeMatcher(instructions)
+	.MatchForward(false,
+			//CodeMatch 1,
+			//CodeMatch 2
+        )
+	.InsertAndAdvance(
+		//CodeInstruction 1,
+		//CodeInstruction 2,
+		//CodeInstruction 3
+		//...
+	);
+	
+	return matcher.InstructionEnumeration();
+}
 ```
 
 And if we want to insert, for example, in the middle of the match, we can use the `Advance` method.
 
 ```CSharp
-	static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-    {
-        CodeMatcher matcher = new CodeMatcher(instructions)
-		.MatchForward(false,
-				//CodeMatch 1,
-				//CodeMatch 2
-            )
-		.Advance(1) //Considering that the match has 2 instructions, we advance 1 to be in the middle
-		.InsertAndAdvance(
-			//CodeInstruction 1,
-			//CodeInstruction 2,
-			//CodeInstruction 3
-			//...
-		);		
-		return matcher.InstructionEnumeration();
-	}
+static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+{
+    CodeMatcher matcher = new CodeMatcher(instructions)
+	.MatchForward(false,
+			//CodeMatch 1,
+			//CodeMatch 2
+        )
+	.Advance(1) //Considering that the match has 2 instructions, we advance 1 to be in the middle
+	.InsertAndAdvance(
+		//CodeInstruction 1,
+		//CodeInstruction 2,
+		//CodeInstruction 3
+		//...
+	);		
+	return matcher.InstructionEnumeration();
+}
 ```
 
 Making again a parallel to the mental plan on [Transpiling mentality](#transpiling-mentality), `Insert` are the `Insert xxxx` steps.
@@ -728,11 +724,11 @@ Making again a parallel to the mental plan on [Transpiling mentality](#transpili
 #### Removing
 ---
 
-Like inserting, removing is one of the basic operations. When compared to inserting they are much simpler, as they only require knwoledg of the amount of instructions you want to remove, and if they are offseted to the current pointer position. Here is a table with them:
+Like inserting, removing is one of the basic operations. When compared to inserting they are much simpler, as they only require knowledge of the amount of instructions you want to remove, and if they are offseted to the current pointer position. Here is a table with the methods that do this operation:
 
 | Method | Arguments | Description |
 |:--------------:|:-----:|-----------|
-| `RemoveInstruction` |  | Removes instruction at current position. |
+| `RemoveInstruction` |  | Removes the instruction at the current position. |
 | `RemoveInstructions` | `int count` | Removes the amount in `count` of instructions starting from the current poisition. |
 | `RemoveInstructionsWithOffsets` | `int startOffset, int endOffset` | Removes the instructions starting inside the range in `startOffset` and `endOffset`, these positions are **relative**, which means **they are affected** by the position pointer position. |
 | `RemoveInstructionsInRange` | `int start, int end` | Removes the instructions starting inside the range in `start` and `end`, these positions are **absolute**, which means **they aren't affected** by the position pointer position. |
@@ -740,16 +736,16 @@ Like inserting, removing is one of the basic operations. When compared to insert
 Here is a simple example:
 
 ```CSharp
-	static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-    {
-        CodeMatcher matcher = new CodeMatcher(instructions)
-		.MatchForward(false,
-				//CodeMatch 1,
-				//CodeMatch 2
-            )
-		.RemoveInstructions(2); //Removes the two instructions we matched to
-		return matcher.InstructionEnumeration();
-	}
+static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+{
+    CodeMatcher matcher = new CodeMatcher(instructions)
+	.MatchForward(false,
+			//CodeMatch 1,
+			//CodeMatch 2
+        )
+	.RemoveInstructions(2); //Removes the two instructions we matched to
+	return matcher.InstructionEnumeration();
+}
 ```
 
 In our the mental plan from [Transpiling mentality](#transpiling-mentality), `Remove` are the `Remove xxxx` steps, and if you combine them with `Insert` they become `Replace xxxx with xxxx`.
@@ -771,21 +767,21 @@ Sometimes you don't need to remove nor insert new `CodeInstructions` to achieve 
 
 An example:
 ```CSharp
-	static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-    {
-        CodeMatcher matcher = new CodeMatcher(instructions)
-		.MatchForward(false,
-                new CodeMatch(i => i.opcode == OpCodes.Ldstr && Convert.ToString(i.operand) == "Hello Transpiling!"),
-				new CodeMatch(OpCodes.Call, AccessTools.Method(typeof(Console), "Console.WriteLine", typeof(string)))
-            ).Repeat(matcher =>
-                matcher.SetOperandAndAdvance("Goodbye Transpiling!")
-				//The pointer is currently on the position of the first matched OpCode, "ldstr".
-				//So we can modify its operand changing the string it holds!
-				//If we wanted we could change the method "call" calls by then doing a new 
-				//matcher.SetOperandAndAdvance() with a method pointer as the operand.
-			);
-		return matcher.InstructionEnumeration();
-	}
+static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+{
+    CodeMatcher matcher = new CodeMatcher(instructions)
+	.MatchForward(false,
+            new CodeMatch(i => i.opcode == OpCodes.Ldstr && Convert.ToString(i.operand) == "Hello Transpiling!"),
+			new CodeMatch(OpCodes.Call, AccessTools.Method(typeof(Console), "Console.WriteLine", typeof(string)))
+        ).Repeat(matcher =>
+            matcher.SetOperandAndAdvance("Goodbye Transpiling!")
+			//The pointer is currently on the position of the first matched OpCode, "ldstr".
+			//So we can modify its operand changing the string it holds!
+			//If we wanted we could change the method "call" calls by then doing a new 
+			//matcher.SetOperandAndAdvance() with a method pointer as the operand.
+		);
+	return matcher.InstructionEnumeration();
+}
 ```
 This is the proper way to do the `Replace xxxx with xxxx` step from our [mental plan](#Transpiling-mentality).
 
@@ -802,79 +798,78 @@ Let's look at an example:
 
 Imagine that we want to change `ten` from 10 to 11, but only **after** ten is used in that `Console.WriteLine("This is a really cool number! {0}", ten + 1)` and before `Console.WriteLine("Good thing that ten is still {0}", ten)`.
 ```CSharp
-	public void BananaCheck() //Original
+public void BananaCheck() //Original
+{
+    if (bananas >= 10)
     {
-        if (bananas >= 10)
-        {
-            ExplodePlayer(10);
-        }
+        ExplodePlayer(10);
+    }
+    Console.WriteLine("I love my {0} bananas!", 10);
 
-        Console.WriteLine("I love my {0} bananas!", 10);
+    int ten = 10;
 
-        int ten = 10;
+    Console.WriteLine("This is a really cool number! {0}", ten + 1);
+	
+    Console.WriteLine("Good thing that ten is still {0}", ten);
+}
 
-        Console.WriteLine("This is a really cool number! {0}", ten + 1);
-		
-        Console.WriteLine("Good thing that ten is still {0}", ten);
+public void BananaCheck() //What we want
+{
+    if (bananas >= 10)
+    {
+        ExplodePlayer(10);
     }
 
-	public void BananaCheck() //What we want
-    {
-        if (bananas >= 10)
-        {
-            ExplodePlayer(10);
-        }
+    Console.WriteLine("I love my {0} bananas!", 10);
 
-        Console.WriteLine("I love my {0} bananas!", 10);
+    int ten = 10;
 
-        int ten = 10;
+    Console.WriteLine("This is a really cool number! {0}", ten + 1);
 
-        Console.WriteLine("This is a really cool number! {0}", ten + 1);
+	ten = 11;
 
-		ten = 11;
+    Console.WriteLine("Good thing that ten is still {0}", ten);
+}
 
-        Console.WriteLine("Good thing that ten is still {0}", ten);
-    }
+//IL code from the original BananaCheck()
+.method public hidebysig 
+instance void BananaCheck () cil managed 
+{
+.maxstack 3
+.locals init (
+	[0] int32 ten
+)
+IL_0000: ldarg.0
+IL_0001: ldfld     int32 PlayerClass::bananas
+IL_0006: ldc.i4.s  10
+IL_0008: blt.s     IL_0012
 
-	//IL code from the original BananaCheck()
-	.method public hidebysig 
-	instance void BananaCheck () cil managed 
-	{
-	.maxstack 3
-	.locals init (
-		[0] int32 ten
-	)
-	IL_0000: ldarg.0
-	IL_0001: ldfld     int32 PlayerClass::bananas
-	IL_0006: ldc.i4.s  10
-	IL_0008: blt.s     IL_0012
-
-	IL_000A: ldarg.0
-	IL_000B: ldc.i4.s  10
-	IL_000D: call      instance void PlayerClass::ExplodePlayer(int32)
+IL_000A: ldarg.0
+IL_000B: ldc.i4.s  10
+IL_000D: call      instance void PlayerClass::ExplodePlayer(int32)
 	
-	IL_0012: ldstr     "I love my {0} bananas!"
-	IL_0017: ldc.i4.s  10
-	IL_0019: box       [mscorlib]System.Int32
-	IL_001E: call      void [mscorlib]System.Console::WriteLine(string, object)
+IL_0012: ldstr     "I love my {0} bananas!"
+IL_0017: ldc.i4.s  10
+IL_0019: box       [mscorlib]System.Int32
+IL_001E: call      void [mscorlib]System.Console::WriteLine(string, object)
 	
-	IL_0023: ldc.i4.s  10
-	IL_0025: stloc.0
+IL_0023: ldc.i4.s  10
+IL_0025: stloc.0
 	
-	IL_0026: ldstr     "This is a really cool number! {0}"
-	IL_002B: ldloc.0
-	IL_002C: ldc.i4.1
-	IL_002D: add
-	IL_002E: box       [mscorlib]System.Int32
-	IL_0033: call      void [mscorlib]System.Console::WriteLine(string, object)
+IL_0026: ldstr     "This is a really cool number! {0}"
+IL_002B: ldloc.0
+IL_002C: ldc.i4.1
+IL_002D: add
+IL_002E: box       [mscorlib]System.Int32
+IL_0033: call      void [mscorlib]System.Console::WriteLine(string, object)
 	
-	IL_0045: ldstr     "Good thing that ten is still {0}"
-	IL_004A: ldloc.0
-	IL_004B: box       [mscorlib]System.Int32
-	IL_0050: call      void [mscorlib]System.Console::WriteLine(string, object)
+IL_0045: ldstr     "Good thing that ten is still {0}"
+IL_004A: ldloc.0
+IL_004B: box       [mscorlib]System.Int32
+IL_0050: call      void [mscorlib]System.Console::WriteLine(string, object)
 	
-	IL_0056: ret
-	}
+IL_0056: ret
+}
 ```
 
 Looking at the IL code we can see that our mental plan is:
@@ -911,51 +906,52 @@ static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> inst
 
 #### Field Variables and Method Arguments
 ---
-One other interesting thing we can do is store and load variables to the fields of the class instance or the arguments passed to the method we are transpiling. This isn't as usefull as you can usually already access them with publicized assemblies or the `AccessTools` tools. But it is still good to know how to work with them in a situation where you cannot load or store the variable with the method we will be shortly seeing when calling functions.
+One other interesting thing we can do is store and load variables to the fields of the class instance or the arguments passed to the method we are transpiling. This isn't as usefull as you can usually already access them with publicized assemblies or the `AccessTools` class.
 
 Loading and storing to method arguments can be achieved with `ldarg` and `starg` (always remember that for non static methods, `ldarg.0` is the `this` object) and doing the same things we did with the local variables on the previous section. But to store and load fields we have some helper methods in `CodeInstruction`. They are `CodeInstruction.LoadField` and `CodeInstruction.StoreField`, which after passing its parameters will return a `CodeInstruction` ready to be used.
 
 Here is a simple example:
 
-We want to change the class field `bananas` from `10` to `100` in the middle of the call of the `Console.WriteLines`.
+We want to change the class field `bananas` from `10` to `100` in the middle of the call of the `Console.WriteLine`'s.
 
 ```CSharp
-	/// ----- Class code -----
-    int bananas = 10;
+/// ----- Class code -----
+int bananas = 10;
 
-    public void BanananaB() //Original Method
-    {
-        Console.WriteLine("You have {0} bananas", bananas);
-        Console.WriteLine("You still have {0} bananas", bananas);
-    }
-	/// ---------------------
+public void BanananaB() //Original Method
+{
+    Console.WriteLine("You have {0} bananas", bananas);
+    Console.WriteLine("You still have {0} bananas", bananas);
+}
 
-	public void BanananaB() //Method we want
-    {
-        Console.WriteLine("You have {0} bananas", bananas);
-		bananas = 100;
-        Console.WriteLine("You still have {0} bananas", bananas);
-    }
+/// ---------------------
 
-	//IL code from Original BanananaB()
-	.method public hidebysig 
-		instance void BanananaB () cil managed 
-	{
-		.maxstack 8
-		IL_0001: ldstr     "You have {0} bananas"
-		IL_0006: ldarg.0
-		IL_0007: ldfld     int32 PlayerClass::bananas
-		IL_000C: box       [mscorlib]System.Int32
-		IL_0011: call      void [mscorlib]System.Console::WriteLine(string, object)
+public void BanananaB() //Method we want
+{
+    Console.WriteLine("You have {0} bananas", bananas);
+	bananas = 100;
+    Console.WriteLine("You still have {0} bananas", bananas);
+}
 
-		IL_0017: ldstr     "You still have {0} bananas"
-		IL_001C: ldarg.0
-		IL_001D: ldfld     int32 PlayerClass::bananas
-		IL_0022: box       [mscorlib]System.Int32
-		IL_0027: call      void [mscorlib]System.Console::WriteLine(string, object)
+//IL code from Original BanananaB()
+.method public hidebysig 
+	instance void BanananaB () cil managed 
+{
+	.maxstack 8
+	IL_0001: ldstr     "You have {0} bananas"
+	IL_0006: ldarg.0
+	IL_0007: ldfld     int32 PlayerClass::bananas
+	IL_000C: box       [mscorlib]System.Int32
+	IL_0011: call      void [mscorlib]System.Console::WriteLine(string, object)
 
-		IL_002D: ret
-	}
+	IL_0017: ldstr     "You still have {0} bananas"
+	IL_001C: ldarg.0
+	IL_001D: ldfld     int32 PlayerClass::bananas
+	IL_0022: box       [mscorlib]System.Int32
+	IL_0027: call      void [mscorlib]System.Console::WriteLine(string, object)
+
+	IL_002D: ret
+}
 ```
 Or mental project is then:
 
@@ -996,7 +992,7 @@ static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> inst
 }
 ```
 
-`CodeInstruction.LoadField` works in a simmilar manner, so when you want to use them you only need the class type, the field name and not forget to call `ldarg.0` or the class instance pointer (all this examples use the `this` class instance, but this work for any class instance inside the method!, just change `ldarg.0` to what calls the instance).
+`CodeInstruction.LoadField` works in a simmilar manner, so when you want to use them you only need the class type, the field name and not forget to call `ldarg.0` or the class instance pointer (all this examples use the `this` class instance, but this work for any class instance inside the method, just change `ldarg.0` to what loads the instance).
 
 ### Calling functions
 ---
@@ -1007,7 +1003,7 @@ Let's start with the casual way of calling a method. You can do that with `CodeI
 
 ```CSharp
 .Insert(
-	new CodeMatch(OpCodes.Ldarg_0), //Always remember to call "this", even if the method has no apparent argument, if it isn't static, it will have "this" as a paramenter.
+	new CodeMatch(OpCodes.Ldarg_0), //Always remember to call "this", even if the method has no apparent argument, if it isn't static, it will have "this" as a parameter.
     CodeInstruction.Call(typeof(PlayerClass), "BananaCheck")
 )
 ```
@@ -1059,9 +1055,6 @@ And if it does return a value, you need to pass it as a `Func`:
     })
 )
 ```
-
-
-For the usual day-to-day transpiling, up to here should be almost enough to create many cool modifications to IL code. Next topics will cover how to create/modify branches and how to return earlier, which aren't as big as a need you will usually have when compared to the rest. So for the ones that aren't interested in them can skip this next two topics.
 
 ### Creating branches
 ---
@@ -1266,7 +1259,7 @@ public void LoopingLoop() //Goal
 
 First we need to find where the body of the loop (`number = i`) is. We can observe that `number` is the local variable of index 0, and that it stores the value of `i`, which is of index 1, so `number = i` must happen when you first call `ldloc.1` and then `stloc.0`, which are the instructions in `IL_0008` and `IL_0009`.
 
-Now that we found the body of the loop, we need to figure out where does it end, the comment on the IL code helps us by telling that after `brtrue.s` there is no longer a loop (that comment is generated by DnSpy), so when breaking, we need to jump to the instruction after that `brtrue.s`.
+Now that we found the body of the loop, we need to figure out where does it end, the comment on the IL code helps us by telling that after `brtrue.s` there is no longer a loop (that comment is generated by dnSpy), so when breaking, we need to jump to the instruction after that `brtrue.s`.
 
 Having these informations we can finally develop our project:
 
@@ -1316,7 +1309,7 @@ So to break from loops of most kinds, we first need to figure out where do they 
 ### Returning earlier
 ---
 
-Returning earlier is one of the easiets things to do, as there is already an OpCode which does that for you, `ret`. The only thing it asks is for a value to be on loaded on the stack if the method has to return something.
+Returning earlier is one of the easiest things to do, as there is already an OpCode which does that for you, `ret`. The only thing it asks is for a value to be loaded on the stack if the method has to return something.
 
 Imagine a situation where you have this method, and you want to return the value of `101` if `ball == "not ball"`, and have this check after `string ball = IsBall()`.
 
@@ -1420,14 +1413,37 @@ static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> inst
 }
 ```
 
-## Various Transpiler Examples
+## Various Transpiler Examples (This section is still work in progress)
+
+This is a section for many transpilers examples, if you felt that you wanted more examples from a certain topic, this is the place!
+
+### Editing in Multiple Matches
 ---
 
-This is a section for many transpilers examples, if you felt that you wanted more examples with from a certain topic, this is the place! The first subsection devide them on the topics in [CodeMatcher](#codematcher), while the second has some crazy transpilers to show what we can do with them.
+### Loading Field Values from Many Class Instances
+---
 
+This example will load field values from multiple class instances into a method call.
+
+### Breaking from a While Loop
+---
+
+
+### Returning Out Values
+---
+
+If you remember from creating C# methods, you can return with `return` and with the `out` parameters, this example will show how you can edit the values on `out` variables.
+
+### Calling in Inline Calls
+---
+Let's say you have this code
+
+```CSharp
+```
+
+And you want to run a code before `asdsa` passes its data to `sdsadsa`.
 
 ## Sources and Other Links
----
 
 Here are all the sources/links referenced on this handbook and maybe others I found are interesting but weren't added in the main text.
 
