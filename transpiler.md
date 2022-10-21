@@ -19,58 +19,58 @@ It is for that purpose that transpilers exist! With them you can not only run wh
 Do you want an example? Let's suppose you have the following code:
 
 ```CSharp
-    void BananaCheck() //Code from Devs
+void BananaCheck() //Code from Devs
+{
+    if(bananas >= 10)
     {
-        if(bananas >= 10)
-        {
-            ExplodePlayer();
-        }
+        ExplodePlayer();
     }
+}
 ```
 And that you don't want the player to explode at 10 `bananas` but at 11 `bananas`! With a postfix you can't do much, but with a prefix you *could* copy the method, run the edited version on the prefix and make it not run the original.
 
 ```CSharp
-    void BananaCheck() //Code from Devs
+void BananaCheck() //Code from Devs
+{
+    if(bananas >= 10)
     {
-        if(bananas >= 10)
-        {
-            ExplodePlayer();
-        }
+        ExplodePlayer();
+    }
+}
+
+bool PrefixBananaCheck() //Our Code
+{
+    if(bananas >= 11)
+    {
+        ExplodePlayer();
     }
 
-    bool PrefixBananaCheck() //Our Code
-    {
-        if(bananas >= 11)
-        {
-            ExplodePlayer();
-        }
-
-        return false; //Skips the original
-    }
+    return false; //Skips the original
+}
 ```
 
  Only issue, what if the developers of the code decide to add more stuff to that method, like add a method that must run otherwise the game breaks.
 
  ```CSharp
-    void BananaCheck() //Code from Devs
+void BananaCheck() //Code from Devs
+{
+    if(bananas >= 10)
     {
-        if(bananas >= 10)
-        {
-            ExplodePlayer();
-        }
-        
-        ReallyImportantMethodThatNeedsToRun();
+        ExplodePlayer();
+    }
+    
+    ReallyImportantMethodThatNeedsToRun();
+}
+
+bool PrefixBananaCheck() //Our Code
+{
+    if(bananas >= 11)
+    {
+        ExplodePlayer();
     }
 
-    bool PrefixBananaCheck() //Our Code
-    {
-        if(bananas >= 11)
-        {
-            ExplodePlayer();
-        }
-
-        return false; //Tells harmony to not run the original.
-    }
+    return false; //Tells harmony to not run the original.
+}
 ```
 
 Now not only is our prefix outdated, but it can make the game break as stuff that might be important inside `BananaCheck` isn't being run in our copy!
@@ -87,11 +87,11 @@ You don't need to worry about knowing how to write "Hello World" in IL nor how t
 ## Intermediary Language (IL)
 You might have heard that if you code in C or C++, your code isn't run by the machine as is. It before needs to be compiled into Assembly code, which is the job of the compiler, who returns your `.exe` or `.dll` file that you can execute to run your program.
 
-![](https://github.com/ShoosGun/TranspilerHandbook/blob/main/pictures/il/cCompiling.webp)
+![](https://github.com/ShoosGun/TranspilerHandbook/tree/main/pictures/il/cCompiling.webp)
 
 When you press the "build" button in your C# project something simmilar happens, a compiler compiles your code and in your "out" folder you now have a .exe or a .dll file. But these files are not the same as the ones from a C/C++ compiler, reason is, is that they are not in assemlby, but in **IL!**. When you run your executable, this new language is compiled into assembly during runtime by the **JIT**(**J**ust **I**n **T**ime) compiler. 
 
-![](https://github.com/ShoosGun/TranspilerHandbook/blob/main/pictures/il/cSharpCompiling.webp)
+![](https://github.com/ShoosGun/TranspilerHandbook/tree/main/pictures/il/cSharpCompiling.webp)
 
 This is one of the reasons you must have a .Net version to run executables from .Net projects, and that executables from C/C++ run in *most* computers without any additional frameworks.
 
@@ -1433,6 +1433,9 @@ This example will load field values from multiple class instances into a method 
 ---
 
 If you remember from creating C# methods, you can return with `return` and with the `out` parameters, this example will show how you can edit the values on `out` variables.
+
+### Expanding If Conditions
+---
 
 ### Calling in Inline Calls
 ---
