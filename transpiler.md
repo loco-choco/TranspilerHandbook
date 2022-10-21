@@ -87,11 +87,11 @@ You don't need to worry about knowing how to write "Hello World" in IL nor how t
 ## Intermediary Language (IL)
 You might have heard that if you code in C or C++, your code isn't run by the machine as is. It before needs to be compiled into Assembly code, which is the job of the compiler, who returns your `.exe` or `.dll` file that you can execute to run your program.
 
-![](pictures\il\cCompiling.webp)
+![](https://github.com/ShoosGun/TranspilerHandbook/blob/main/pictures/il/cCompiling.webp)
 
 When you press the "build" button in your C# project something simmilar happens, a compiler compiles your code and in your "out" folder you now have a .exe or a .dll file. But these files are not the same as the ones from a C/C++ compiler, reason is, is that they are not in assemlby, but in **IL!**. When you run your executable, this new language is compiled into assembly during runtime by the **JIT**(**J**ust **I**n **T**ime) compiler. 
 
-![](pictures\il\cSharpCompiling.webp)
+![](https://github.com/ShoosGun/TranspilerHandbook/blob/main/pictures/il/cSharpCompiling.webp)
 
 This is one of the reasons you must have a .Net version to run executables from .Net projects, and that executables from C/C++ run in *most* computers without any additional frameworks.
 
