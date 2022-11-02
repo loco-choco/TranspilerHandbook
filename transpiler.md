@@ -4,7 +4,7 @@
 
 *Version: 1.0.2*
 
-*Date: 24/10/2022*
+*Date: 02/11/2022*
 
 This is a handbook for people looking for examples and different ways to use the transpiler type of patching. Transpilers when compared to prefixes and postfixes are usually more complicated, as they have many moving parts, so if you still haven't learned them, I suggest you do it before you dip your toes on the transpiler waters.
 
