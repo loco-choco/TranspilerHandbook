@@ -30,6 +30,27 @@ namespace TranspilerExamples
             Console.ReadLine();
         }
 
+        static float Add(float a, float b)
+        {
+            return  a + b;
+        }
+
+        static string StringAdder(int i, string s, float f)
+        {
+            return s + i.ToString() + f.ToString();
+        }
+
+        static void Caller() 
+        {
+            StringAdder(100, "love number! ", 2f);
+        }
+        static float Returner(out int i, out string s)
+        {
+            i = 0;
+            s = "abc";
+            return 10f;
+        }
+
 
         static float AddNumbers(int a, float b)
         {

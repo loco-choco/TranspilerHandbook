@@ -2,9 +2,9 @@
 
 *By Locochoco / ShoosGun / Ivan Pancheniak*
 
-*Version: 1.0.1*
+*Version: 1.0.2*
 
-*Date: 21/10/2022*
+*Date: 24/10/2022*
 
 This is a handbook for people looking for examples and different ways to use the transpiler type of patching. Transpilers when compared to prefixes and postfixes are usually more complicated, as they have many moving parts, so if you still haven't learned them, I suggest you do it before you dip your toes on the transpiler waters.
 
@@ -198,6 +198,7 @@ As mentioned before we will mostly be looking at the OpCodes which are interesti
 | `stloc` | `stloc` | Stores into the local variable on the method |
 | `ldc.i4` | `ldc.i4` | Loads a `int32` constant |
 | `call` | `call [method complete name]`| Calls methods|
+| `pop` | `pop` | Pops values from the [stack](#the-stack-nature-of-il)|
 | `ret` | `ret`| Ends current method|
 | `br` and simmilar | `br [Label to target OpCode]`| Jumps the code to the OpCode pointed by the label|
 
@@ -330,11 +331,288 @@ private void LoopFor(int[] array)
 
 For more examples check the ones in the [dotnetperls website](https://www.dotnetperls.com/il).
 
+### The Stack Nature of IL
+---
+
+As we saw before, the building blocks of IL are the OpCodes, so you might be asking, *"If the computer only sees the OpCodes line by line, how does it know what type of information I passed to, for example, a method?"*. The answer is that it also has a structure that holds what information is currently loaded, that structure being **a stack!**
+
+You might have heard that a stack is a data structure where you can only insert (or *push*) data to its end (or top) and only remove (or *pop*) the last information stored. 
+
+This means that an OpCode can either do nothing to the stack, *push* (*push* is the action of inserting values to its top) values to it, *pop* (*pop* is the action of getting the last value and removing it from the stack at the same time) values from it, or do both!
+
+Remember when [it was said](#opcodes-of-interest) that the `ldarg` and `ldloc` OpCodes *"load"* stuff, for IL *loading* is *pushing information to the **stack***.
+
+And `starg` or `stloc`, which *"store"* stuff, need *something* to be stored on the correct place, and that *something* is the value it gets when *poping* from the stack.
+
+`call`s can do both, because they need to *pop* from the stack to pass the information to the method (if the method has arguments), and if they have a return value they **will** insert it to the stack.
+
+Let's look at some examples:
+
+#### Example 1)
+```CSharp
+//C# Code
+private static void Main(string[] args)
+{
+	Console.WriteLine("Hello Transpiling!");
+}
+//IL code (Debug Mode)
+.method private hidebysig static 
+	void Main (
+		string[] args
+	) cil managed 
+{
+	.maxstack 8
+	.entrypoint
+    IL_0000: nop
+    IL_0001: ldstr     "Hello Transpiling!"
+    IL_0006: call      void [mscorlib]System.Console::WriteLine(string)
+    IL_000B: nop
+    IL_000C: ret
+}
+```
+
+The stack is something shared through all the program, because this is our `Main` program, it starts empty:
+| Stack |
+|:-----:|
+|   -   |
+
+Line `IL_0000` does nothing to it, as it is a `nop` instruction. But line `IL_0001` does a `ldstr` which will *push* the string to the stack:
+| Stack |
+|:-----:|
+|   `"Hello Transpiling!"`   |
+
+Line `IL_006` does a `call` for `Console.WriteLine`, as the line suggests it requires a `string` and will return `void`. This means that it will *pop* the stack for the first value, which is the string it requires, but won't insert anything to it as, it *returns `void`*:
+| Stack |
+|:-----:|
+|   -   |
+
+Line `IL_000B` again does nothing, and `IL_000C` ends the method by returning to the caller, and because this the main method it will just exit the program.
+
+#### Example 2)
+
+```CSharp
+//C# Code
+static float Add(float a, float b)
+{
+    return  a + b;
+}
+//IL code (Release Mode)
+.method private hidebysig static 
+	float32 Add (
+		float32 a,
+		float32 b
+	) cil managed 
+{
+	.maxstack 8
+
+	IL_0000: ldarg.0
+	IL_0001: ldarg.1
+	IL_0002: add
+	IL_0003: ret
+}
+```
+
+Because `Add` is not the main method, there might already be stuff on the stack, which will be represented by *xxx*:
+| Stack |
+|:-----:|
+|  xxx  |
+
+Line `IL_0000` is a `ldarg.0`, so it will insert to the top the value at position `0` of the method arguments to the stack:
+| Stack |
+|:-----:|
+|  `a`  |
+|  xxx  |
+
+Line `IL_0001` is also a `ldarg`, but for the one on position `1`, so the stack will look like:
+| Stack |
+|:-----:|
+|  `b`  |
+|  `a`  |
+|  xxx  |
+
+Now line `IL_0002` has `add`. This OpCode, as the [documentation says](https://learn.microsoft.com/pt-br/dotnet/api/system.reflection.emit.opcodes.add), pops two values from the stack, adds them together, and pushes the result back to the stack, this means that, step by step, the stack will look like:
+| Stack (after `add` gets its *last* argument (we will see why it is the *last* on [example 4](#example-4))) |
+|:-----:|
+|  `a`  |
+|  xxx  |
+
+| Stack (after `add` gets its *first* argument) |
+|:-----:|
+|  xxx  |
+
+| Stack (after `add` returns) |
+|:-----:|
+|  `a + b`  |
+|  xxx  |
+
+Then it returns at line `IL_0003`, as you can see, before the stack only had the *xxx* values, and now it also has `a + b`. This is how a call returns a value by pushing it to the stack, which lets the caller use it after.
+
+#### Example 3)
+
+```CSharp
+//C# Code
+private static void Main(string[] args)
+{
+	Console.WriteLine("Hello Transpiling!");
+	Add(1f, 2f);
+}
+//IL code (Release Mode)
+.method private hidebysig static 
+	void Main (
+		string[] args
+	) cil managed 
+{
+	.maxstack 8
+	.entrypoint
+
+	IL_0000: ldstr     "Hello Transpiling!"
+	IL_0005: call      void [mscorlib]System.Console::WriteLine(string)
+	
+	IL_000A: ldc.r4    1
+	IL_000F: ldc.r4    2
+	IL_0014: call      float32 TranspilerExamples.Program::Add(float32, float32)
+	IL_0019: pop
+	
+	IL_001A: ret
+}
+```
+Like on [example 1](#example-1), as this is our `Main` method the stack will start empty:
+| Stack |
+|:-----:|
+|   -   |
+
+Again, like on first example, lines `IL_0000` and `IL_0005` will push a `string` to the stack, and remove it when calling `Console.WriteLine`:
+| Stack (after `IL_0000`) |
+|:-----:|
+|   `"Hello Transpiling!"`   |
+
+| Stack (after `IL_0005`) |
+|:-----:|
+|   -   |
+
+Lines `IL_000A` and `IL_000F`, `ldc.r4`, load `floats` into the stack, this means that after them the stack looks like:
+| Stack (after `IL_000A`) |
+|:-----:|
+|  `1f` |
+
+| Stack (after `IL_000F`) |
+|:-----:|
+|  `2f` |
+|  `1f` |
+
+`IL_0014` is the call of the method from [example 2](#example-2), so if we remember what it did on it, it will pop the two first values, and returns the sum of them:
+
+| Stack (before `IL_0014` complets) |
+|:-----:|
+|   -   |
+
+| Stack (after `IL_0014`) |
+|:-----:|
+|  `3f` |
+
+Line `IL_0019` is a `pop`, this means that it will remove the first value on the stack. The reason why it is being used is because `Main` should return `void`, as that is the return type chosen for it, so we need the stack to be empty before calling `ret`:
+
+| Stack (after `IL_0019`) |
+|:-----:|
+|   -   |
+
+
+And as you might now know, `IL_001A` does a `ret`, exiting from the program (because this method is our *main* method).
+
+#### Example 4)
+
+```CSharp
+//C# Code
+static void Caller() 
+{
+    StringAdder(100, "love number! ", 2f);
+}
+//IL code (Release Mode)
+.method private hidebysig static 
+	void Caller () cil managed 
+{
+	.maxstack 8
+
+	IL_0000: ldc.i4.s  100
+	IL_0002: ldstr     "love number! "
+	IL_0007: ldc.r4    2
+	IL_000C: call      string TranspilerExamples.Program::StringAdder(int32, string, float32)
+	IL_0011: pop
+	
+	IL_0012: ret
+}
+```
+
+Like on [example 2](#example-2), we are going to assume that the stack already has values in it:
+| Stack |
+|:-----:|
+|  xxx  |
+
+As we saw before, lines `IL_0000`, `IL_0002` and `IL_0007` call OpCodes which will push (pushing is inserting but specifically to the start) the `100`, `"love number! "` and `2f` values to the stack:
+| Stack (after `IL_0000`) |
+|:-----:|
+|  `100`  |
+|  xxx  |
+
+| Stack (after `IL_0002`) |
+|:-----:|
+|  `"love number! "`  |
+|  `100`  |
+|  xxx  |
+
+| Stack (after `IL_0007`) |
+|:-----:|
+|  `2f`  |
+|  `"love number! "`  |
+|  `100`  |
+|  xxx  |
+
+Pay special atention to the order the pushing is made. Because the method called in `IL_000C` can only see values by poping from the stack one at the time, they need to be in a special order so it doesn't mix the order of the arguments. As we can see on the C# code, that order is `100`, `"love number! "` and `2f`. 
+
+But, if we go from top to bottom (which is the way the method can access the values), the values are on the `2f`, `"love number! "` and `100` order. This means that the method receives the values on the ***reverse order!*** Or you can think that it gets the values from right to left from the method definition (`string TranspilerExamples.Program::StringAdder(int32, string, float32)`). So the stack will look like:
+
+| Stack (before `IL_000C`) |
+|:-----:|
+|  `2f`  |
+|  `"love number! "`  |
+|  `100`  |
+|  xxx  |
+
+| Stack (after `IL_000C` get last argument) |
+|:-----:|
+|  `"love number! "`  |
+|  `100`  |
+|  xxx  |
+
+| Stack (after `IL_000C` gets middle argument) |
+|:-----:|
+|  `100`  |
+|  xxx  |
+
+| Stack (after `IL_000C` gets first argument) |
+|:-----:|
+|  xxx  |
+
+| Stack (after `IL_000C` returns) |
+|:-----:|
+|  `"love number! 1002"`  |
+|  xxx  |
+
+Simmilar to how we need to return an empty stack on [example 3](#example-3), `Caller()` has a return type of `void`, so we need to return the stack how it originally was, this means that we need to pop `"love number! 1002"` out of it with line `IL_0011`:
+
+| Stack (after `IL_0011`) |
+|:-----:|
+|  xxx  |
+
+Finally, `ret` is called in line `IL_0012` and the method returns control to whoever called it.
+
+
 ### Labels
 ---
 
-Labels are a concept that exist in multiple programming languages. Basically what they do is mark a part of the code that you can later with a `goto` jump to. Of course that in regular programming they don't appear that much, but the concept in IL isn't that different. If you noticed on the examples, every OpCode has an index, the `IL_xxxx`, and because a line of code in IL is *just an OpCode*, a label, instead of just marking a line of code, points to an OpCode. For example, on the [For Loop](#2-for-loop) example, the code in `IL_0006` has as a parameter a label that points to the instruction at `IL_0010`.
+Labels are a concept that exist in multiple programming languages. Basically what they do is mark a part of the code that you can later with a `goto` jump to. Of course that in regular programming they don't appear that much, but the concept in IL isn't that different. 
 
+If you noticed on the examples, every OpCode has an index, the `IL_xxxx`, and because a line of code in IL is *just an OpCode*, a label, instead of just marking a line of code, points to an OpCode. For example, on the [For Loop](#2-for-loop) example, the code in `IL_0006` has as a parameter a label that points to the instruction at `IL_0010`.
 
 ### Branching
 ---
